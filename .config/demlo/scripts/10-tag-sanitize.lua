@@ -55,3 +55,5 @@ tags.disc = not empty(o.album) and not empty(o.disc) and o.disc:match([[0*(\d*)]
 --
 -- For tracknumber, consider the first number only, and keep leading zeroes
 tags.track = not empty(o.album) and not empty(o.track) and o.track:match([[(0*\d*)]]) or nil
+
+output.tags = tags
