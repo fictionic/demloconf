@@ -34,6 +34,7 @@ end
 if empty(o.album) then
 	tags.album_artist = nil
 else
+	o.album_artist = o.album_artist or o.albumartist or o["album artist"]
 	if not empty(o.album_artist) then
 		tags.album_artist = o.album_artist
 	else
@@ -44,7 +45,7 @@ end
 -- always use these tags
 tags.album = o.album
 tags.composer = o.composer
-tags.date = o.date
+tags.date = o.date or o.year
 tags.comment = o.comment
 tags.title = o.title
 

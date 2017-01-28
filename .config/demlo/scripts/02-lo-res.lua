@@ -1,7 +1,8 @@
 library_dir = 'lo-res'
 COVER_LIMIT_HIGH = 300
 cover_types = {"front"}
-encoding_map = { -- input_format -> {output_format, output_parameters}
+output.rmsrc = false
+encoding_map = {
 	['flac'] = {
 		['format'] = 'ogg',
 		['parameters'] = {'-c:a', 'libvorbis', '-q:a', '5'}
