@@ -272,7 +272,7 @@ local parenthetical_instrumental_indication = {
 	['re'] = "^(?i:instrumental(?: mix)?$)",
 	['func'] = function (tag, matches)
 		debug("found instrumental indication")
-		add_component(tag, '[instrumental]', false)
+		add_component(tag, '(instrumental)', false)
 	end
 }
 
