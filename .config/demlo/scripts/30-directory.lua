@@ -35,6 +35,7 @@ local function append(field, before, after)
 end
 
 directory = ''
+debug("COMPUTING OUTPUT DIRECTORY")
 
 -- hi-res vs lo-res
 if library_dir then
@@ -61,6 +62,7 @@ if library_dir then
 		-- album folder: construct from tags
 		if not empty(o.album) then
 			append(o.date, '[', '] ')
+			debug("appending album")
 			append(o.album)
 			directory = directory .. '/'
 		end
