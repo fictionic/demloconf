@@ -101,9 +101,9 @@ local non_parenthetical_featured_performer = {
 		if tag == 'artist' then
 			featured_performer_in_artist = matches[2]
 		else -- tag == 'title'
-			add_component(tag, '(feat. ', false)
+			add_component(tag, '[feat. ', false)
 			add_component(tag, matches[2], true)
-			add_component(tag, ')', false)
+			add_component(tag, ']', false)
 		end
 		return rest
 	end
@@ -470,7 +470,7 @@ local parenthetical = {
 			end
 		end
 		-- if we should continue scanning after the end of the parenthetical
-		-- (for parenthetical subtitle we shouldn't, cuz there might be
+		-- (for parenthetical subtitle we shouldn't, since there might be
 		-- other components inside the parenthetical, like quotes)
 		if scan_parenthetical then
 			return rest

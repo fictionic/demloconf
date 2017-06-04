@@ -30,7 +30,9 @@ if output.format == 'mov,mp4,m4a,3gp,3g2,mj2' then
 		-- ???? FFmpeg does not support m4a. Use mp4 instead.
 		output.format = 'mp4'
 	end
+	ext = "m4a"
 elseif output.format == 'aac' then
 	-- wrap raw aac streams in an mp4 container
 	output.format = 'mp4'
+	ext = "m4a"
 end

@@ -1,1 +1,1 @@
-output.write = 'blah'
+output.write = ''

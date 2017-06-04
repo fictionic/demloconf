@@ -8,8 +8,7 @@ end
 
 --
 -- set extension based on format
-local ext = ext or (empty(output.format) and input.format.format_name or output.format)
-if ext == 'mp4' then ext = 'm4a' end
+local ext = ext or output.format
 
 -- extract default directory, basename from input path
 local directory_default, basename_default = input.path:match("^(.+?/)([^/]+)\\.[^.]+$")

@@ -68,3 +68,5 @@ if library_dir then
 		end
 	end
 end
+
+debug("OUTPUT DIRECTORY: " .. directory)
