@@ -1,8 +1,19 @@
+------------------
+-- 01: PROFILES --
+------------------
+
+-- high resolution library preset
+---------------------------------
+
+-- import to hi-res library
 library_dir = 'hi-res'
-COVER_LIMIT_HIGH = 20000
-cover_types = {"front", "back", "other"}
+
+-- don't keep original files
+output.rmsrc = true
+
+-- lossless -> flac, lossy -> copy
 encoding_map = {
-	['wav'] = {
+	['(wav|flac)'] = {
 		['format'] = 'flac',
 		['parameters'] = {'-c:a', 'flac', '-aq', '8'}
 	},
@@ -11,3 +22,12 @@ encoding_map = {
 		['parameters'] = {'-c:a', 'copy'}
 	}
 }
+
+-- use all cover types
+cover_types = {"front", "back", "other"}
+
+-- downscale ultra-high-res covers
+COVER_LIMIT_HIGH = LOCAL_COVER_SIZE_LIMIT
+
+-- apply minimal path substitutions
+pathsubs = default_pathsubs

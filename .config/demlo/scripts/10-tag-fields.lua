@@ -1,13 +1,69 @@
-------------------------------------
---	SANITIZE TAGS
-------------------------------------
+-----------------------------
+-- 10: SANITIZE TAG FIELDS --
+-----------------------------
 
--- Start from a clean set of tags.
+debug([[//===================\\]])
+debug([[|| 10-tag-fields.lua ||]])
+debug([[\\===================//]])
+
+-- extract any missing tags from filepath
+debug("> Extracting tags from file path...")
+local path_components = {}
+path_components.dirname, path_components.basename = input.path:match("^/(?:[^/]+/)*([^/]+)/([^/]+)\\.[^.]+$")
+local format_tables = {
+	['dirname'] = {
+		{
+			-- "artist - album (date)"
+			['re'] = "^(.*) - (.*) \\(([0-9]{4})\\)",
+			['tagnames'] = {'artist', 'album', 'date'}
+		},
+		{
+			-- "artist - album"
+			['re'] = "^(.*) - (.*)",
+			['tagnames'] = {'artist', 'album'}
+		},
+		{
+			-- "album"
+			['re'] = "^(.*)",
+			['tagnames'] = {'album'}
+		}
+	},
+	['basename'] = {
+		{
+			-- "disc.track. title"
+			['re'] = "^([0-9])\\.([0-9]+)\\. (.*)",
+			['tagnames'] = {'disc', 'track', 'title'}
+		},
+		{
+			-- "track. title"
+			['re'] = "^([0-9]+)\\. (.*)",
+			['tagnames'] = {'track', 'title'}
+		}
+	}
+}
+for stringname, formats in pairs(format_tables) do
+	string = path_components[stringname]
+	for _, format in ipairs(formats) do
+		matches = {string:match(format.re)}
+		if #matches > 0 then
+			-- assign tags
+			for i, tagname in ipairs(format.tagnames) do
+				debug("extracted " .. tagname .. ": " .. matches[i])
+				if empty(o[tagname]) then
+					o[tagname] = matches[i]
+				else
+					debug("WARNING: extracted tag differs from existing tag; using existing tag")
+				end
+			end
+			break
+		end
+	end
+end
+
+-- start from a clean set of tags
 tags = {}
 
-function empty(s)
-	return (type(s) ~= 'string' or s == '')
-end
+debug("> Cleaning tag fields...")
 
 -- determine if there's an artist
 if not empty(o.artist) then

@@ -34,4 +34,4 @@ Process = false
 -- Scripts to run by default.
 -- Demlo will run them in lexicographic order.
 -- Order matters, e.g. 'path' can be influenced by the modifications made by 'tag'.
-Scripts = {'00-defaults', '10-tag-fields', '11-tag-content', '20-encode', '30-directory', '40-basename', '50-path', '60-cover'}
+Scripts = {'00-globals', '01-default', '10-tag-fields', '11-tag-contents', '20-encode', '30-directory', '31-basename', '32-path', '40-cover'}

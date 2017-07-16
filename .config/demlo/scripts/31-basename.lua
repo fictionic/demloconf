@@ -1,12 +1,12 @@
-empty = empty or function (s)
-	if type(s) ~= 'string' or s == '' then
-		return true
-	else
-		return false
-	end
-end
+---------------------
+-- 30: OUTPUT PATH --
+---------------------
 
-function apply_pathsubs(s)
+-- debug([[//=================\\]])
+-- debug([[|| 31-basename.lua ||]])
+-- debug([[\\=================//]])
+
+apply_pathsubs = apply_pathsubs or function (s)
 	for bad, good in pairs(pathsubs) do
 		s = s:gsub(bad, good)
 	end

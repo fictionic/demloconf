@@ -1,7 +1,11 @@
-------------------------------------
---	ANALYZE TAGS
-------------------------------------
---
+-----------------------
+-- 11: SANITIZE TAGS --
+-----------------------
+
+debug([[//=====================\\]])
+debug([[|| 11-tag-contents.lua ||]])
+debug([[\\=====================//]])
+
 -- Overview:
 -- The tags 'title', 'album', 'album_artist', and 'artist' need to be capitalized properly.
 -- Rather than treating each tag as a single entity, it is necessary to treat them as series
@@ -9,63 +13,23 @@
 -- may have a parenthetical subtitle: 'Evolution (The Grand Design)'--in this case, the subtitle
 -- begins with a word that is normally uncapitalized, but it should be capitalized in this case
 -- because it begins a new title.
--- Components come in many forms, some needing special capitalization and some needing to be left
--- alone. Thus each component contains two things: a string, and a boolean.
--- Each of the above tags gets analyzed into a series of components, then the components are assembled
--- back into the tag.
-
-debug(">> ANALYZING TAGS")
-
--- FUNCTIONS --
-
-local delim_stack
-
-empty = empty or function (s)
-	return (type(s) ~= 'string' or s == '')
-end
-
--- for converting decimal numbers to roman numerals
-local function decimal_to_roman(s)
-	numbers = {1, 5, 10, 50, 100, 500, 1000}
-	chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
-	if s == '' then return '' end
-	d = tonumber(s)
-	if not d or d ~= d then return '' end
-	d = math.floor(d)
-	local ret = ""
-	for i = #numbers, 1, -1 do
-		local num = numbers[i]
-		while d - num >= 0 and d > 0 do
-			ret = ret .. chars[i]
-			d = d - num
-		end
-		for j = 1, i - 1 do
-			local n2 = numbers[j]
-			if d - (num - n2) >= 0 and d < num and d > 0 and num - n2 ~= n2 then
-				ret = ret .. chars[j] .. chars[i]
-				d = d - (num - n2)
-				break
-			end
-		end
-	end
-	return ret
-end
--- for converting english number words into roman numerals
-local function english_to_roman(s)
-	mapping = {
-		['one'] = 'I',
-		['two'] = 'II',
-		['three'] = 'III',
-		['four'] = 'IV',
-		['five'] = 'V',
-		['six'] = 'VI',
-		['seven'] = 'VII',
-		['eight'] = 'VIII',
-		['nine'] = 'IX',
-		['ten'] = 'X'
-	}
-	return mapping[s]
-end
+-- A component contains two things: a string (a substring of a tag value), and a boolean,
+-- indicating whether or not the component should be capitalized according to the predefined rules
+-- or if it should be left alone.
+--
+-- Tag values are broken into components by being matched against 'feature templates'. A feature
+-- template is a regular expression that is meant to match on certain portions of certain tags,
+-- along with a function that assembles the substrings into a sanitized string. That is, they 
+-- have a meaning associated with them, and this meaning determines which portions of the matching
+-- string should be put into components in which way.
+--
+-- For example, the template `parenthetical_alternate_mix_indication` matches on titles like
+-- "Easy (Remix ft. Busdriver)", and extracts the name of the remixer along with the fact that
+-- the song is a remix--specifically, it adds components "remix feat. " and "Busdriver" to
+-- the title tag, the first to remain unaltered, and the second to be capitalized to titlecase,
+-- as an artist name should be.
+--
+-- At the end of the process, the components are assembled back into newly-santized tags.
 
 -- add a component to a given tag's table
 local function add_component(tag, component, capitalize)
@@ -83,9 +47,9 @@ local function add_component(tag, component, capitalize)
 	end
 end
 
---------------------
--- TAG COMPONENTS --
---------------------
+-----------------------
+-- FEATURE TEMPLATES --
+-----------------------
 
 local featured_performer_in_artist = nil
 local disc_number_in_album = nil
@@ -326,12 +290,17 @@ local parenthetical_alternate_mix_indication = {
 }
 
 local parenthetical_alternate_recording_indication = {
-	['re'] = "^(?i:((demo|(early|earlier|demo) version)|((studio|live( from .*)?)( version)?)))$",
+	['re'] = "^(?i:((?:demo|(?:early|earlier|demo) version)|(?:(?:acoustic|studio|live(?: from (.*))?)(?: version)?)))$",
 	['func'] = function (tag, matches)
 		debug("found alternate recording indication")
 		if matches[1]:match("^[Dd]emo [Vv]ersion$") then
 			matches[1] = "demo"
 		end
+		debug("=====")
+		for _, match in ipairs(matches) do
+			debug(match)
+		end
+		debug("=====")
 		-- TODO: lowercase "live" when parenthetical goes "Live from/at <venue>"
 		add_component(tag, '(' .. matches[1]:lower() .. ')', false)
 	end
@@ -342,7 +311,7 @@ local parenthetical_alternate_version_indication = {
 	['func'] = function (tag, matches)
 		debug("found alternate version indication")
 		add_component(tag, '(', false)
-		if matches[1]:match('^([Aa]lternate|[Ee]arl(y|ier))$') then
+		if matches[1]:match('^(?i:alternate|earl(y|ier)|strings|saxophones)$') then
 			add_component(tag, matches[1]:lower(), false)
 		else
 			add_component(tag, matches[1], true)
@@ -375,6 +344,7 @@ local parenthetical_single_indication = {
 		add_component(tag, '[single]', false)
 	end
 }
+
 local parenthetical_alternate_release_indication = {
 	['re'] = "^(.* )[Rr]elease$",
 	['func'] = function (tag, matches)
@@ -389,7 +359,7 @@ local parenthetical_alternate_edition_indication = {
 	['re'] = "(?i:(.*) edition)",
 	['func'] = function (tag, matches)
 		debug("found parenthetical alternate edition indication")
-		if matches[1]:match('(?i:(japanese|deluxe|special))') then
+		if matches[1]:match('(?i:(japanese|deluxe|special|limited))') then
 			if matches[1]:match('(?i:japanese)') then
 				add_component(tag, '(Japanese edition)', false)
 			else
@@ -445,8 +415,8 @@ local parenthetical_possibilities = {
 	}
 }
 
--- the parenthetical meta-component
--- (determines which sub-component is a match)
+-- the parenthetical meta-feature
+-- (determines which sub-feature is a match)
 local parenthetical = {
 	['re'] = [=[ (\(|\[)]=],
 	['func'] = function (tag, matches, rest)
@@ -584,6 +554,8 @@ end
 -- do the analysis --
 ---------------------
 
+debug(">> ANALYZING TAGS")
+
 components = {}
 for tag, _ in pairs(tags) do
 	if possible_components[tag] then
@@ -610,11 +582,7 @@ end
 --	SYNTHESIZE TAGS
 ------------------------------------
 
-debug(">> STANDARDIZING TAGS")
-
-empty = empty or function (s)
-	return (type(s) ~= 'string' or s == '')
-end
+debug(">> ASSEMBLING TAGS")
 
 -- analyze & fix composer
 if not empty(tags.composer) then
@@ -634,82 +602,23 @@ end
 --	standardize case
 ------------------------------------
 
--- global options.
-local sentencecase = scase or false
-
--- rules for simple global substitution through all tags
-local subst = {
-	-- replace various type of single quotes by "'".
-	{'[´`’]', "'"},
-}
-
--- words that should always be lowercase
--- unless at the start or end of a component
-const_lower = const_lower or {
--- articles
-	'the',
-	'a',
-	'an',
--- coordinating conjunctions
-	'and',
-	'if',
-	'but',
-	'or',
-	'nor',
-	'so',
--- misc
-	'vs',
--- spanish
-	'la',
-	'el',
-	'del',
-	'al',
--- other
-	'à',
-}
-
--- words that should be lowercase unless
--- at the start or end of a component OR
--- if preceded by certain words, as to
--- make them not be prepositions
-const_preposition = {
-	['to'] = {},
-	['with'] = {},
-	['of'] = {},
-	['from'] = {},
-	['on'] = {'come', 'move'},
-	['in'] = {'plug', 'breathe', 'breathing'},
-	['into'] = {},
-	['at'] = {},
-	['by'] = {},
-	['for'] = {},
-	['as'] = {},
-	['via'] = {},
-}
-
--- words that should always be uppercase
-const_upper = const_upper or {
-	'OK',
-	'DVD',
-	'CD',
-}
-
--- casing options
+-- casing options -- no enums :(
 local LEAVE_ALONE = 0
 local LOWERCASE = 1
 local CAPITALIZE = 2
 local UPPERCASE = 3
 
--- Constants are written as provided, except if they begin a component, in which
+-- constants are written as provided, except if they begin a component, in which
 -- case the first letter is uppercase, or, if sentencecase is not set, if they
 -- end a component.
 --
--- When sentencecase is set to true, only the first letter of every component will
+-- when sentencecase is set to true, only the first letter of every component will
 -- be capitalized, the other words that are not subject to the rules will be
 -- lowercase.
 --
--- This script was inspired by http://www.pement.org/awk/titlecase.awk.txt.
-local function setcase(input, sentencecase)
+-- this function was adapted from a script that was
+-- inspired by http://www.pement.org/awk/titlecase.awk.txt
+local function setcase(input)
 	-- Process words from 'input' one by one and append them to 'output'.
 	local output = {}
 
@@ -893,7 +802,7 @@ end
 
 -- apply global substitutions
 for k, _ in pairs(tags) do
-	for _, rule in ipairs(subst) do
+	for _, rule in ipairs(tags_global_substitutions) do
 		tags[k] = tags[k]:gsub(rule[1], rule[2])
 	end
 end
@@ -905,4 +814,49 @@ end
 
 -- replace all tags
 output.tags = tags
-o = output.tags
+
+
+--------------------------------------
+-- for converting decimal numbers to roman numerals
+local function decimal_to_roman(s)
+	numbers = {1, 5, 10, 50, 100, 500, 1000}
+	chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
+	if s == '' then return '' end
+	d = tonumber(s)
+	if not d or d ~= d then return '' end
+	d = math.floor(d)
+	local ret = ""
+	for i = #numbers, 1, -1 do
+		local num = numbers[i]
+		while d - num >= 0 and d > 0 do
+			ret = ret .. chars[i]
+			d = d - num
+		end
+		for j = 1, i - 1 do
+			local n2 = numbers[j]
+			if d - (num - n2) >= 0 and d < num and d > 0 and num - n2 ~= n2 then
+				ret = ret .. chars[j] .. chars[i]
+				d = d - (num - n2)
+				break
+			end
+		end
+	end
+	return ret
+end
+-- for converting english number words into roman numerals
+local function english_to_roman(s)
+	mapping = {
+		['one'] = 'I',
+		['two'] = 'II',
+		['three'] = 'III',
+		['four'] = 'IV',
+		['five'] = 'V',
+		['six'] = 'VI',
+		['seven'] = 'VII',
+		['eight'] = 'VIII',
+		['nine'] = 'IX',
+		['ten'] = 'X'
+	}
+	return mapping[s]
+end
+

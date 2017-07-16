@@ -136,7 +136,7 @@ for file, input_cover in pairs(input.externalcovers) do
 	if not cover_type then
 		cover_type = "other"
 	end
-
+--
 	-- standardize file names
 	if cover_type == "front" then
 		new_base_filename = "cover"

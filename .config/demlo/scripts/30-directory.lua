@@ -1,23 +1,12 @@
-------------------------------------
---	OUTPUT PATH
-------------------------------------
+---------------------
+-- 30: OUTPUT PATH --
+---------------------
 
--- demlo script
+debug([[//==================\\]])
+debug([[|| 30-directory.lua ||]])
+debug([[\\==================//]])
 
 -- set the library directory according to tags
--- apply pathsubs
-
-empty = empty or function (s)
-	if type(s) ~= 'string' or s == '' then
-		return true
-	else
-		return false
-	end
-end
-
-local pathsubs = pathsubs or {
-	["/"] = ","
-}
 
 function apply_pathsubs(s)
 	for bad, good in pairs(pathsubs) do
@@ -34,12 +23,12 @@ local function append(field, before, after)
 	end
 end
 
-directory = ''
+directory = directory or ''
 debug("COMPUTING OUTPUT DIRECTORY")
 
 -- hi-res vs lo-res
 if library_dir then
-	directory = '/home/dylan/audio/library/' .. library_dir
+	directory = library_location .. library_dir
 	-- music vs non-music TODO
 	directory = directory .. '/music/'
 	-- torrent vs non-torrent
@@ -69,4 +58,4 @@ if library_dir then
 	end
 end
 
-debug("OUTPUT DIRECTORY: " .. directory)
+debug("OUTPUT DIRECTORY: '" .. directory .. "'")
