@@ -2,6 +2,10 @@
 --	COVERS
 ------------------------------------
 
+debug([[//==============\\]])
+debug([[|| 40-cover.lua ||]])
+debug([[\\==============//]])
+
 -- demlo script
 -- Remove embedded covers. Convert to jpeg. Skip covers beyond quality threshold. Skip duplicates.
 
@@ -89,17 +93,17 @@ for file, input_cover in pairs(input.externalcovers) do
 	local cover_type
 	---- front cover
 	local front_cover_re_list = {
-		"folder",
-		"(front|(front )?cover)"
+		"^folder$",
+		"^(front|(front )?cover)$"
 	}
 	if albumname then
-		front_cover_re_list[#front_cover_re_list+1] = albumname .. '( - (front|(front )?cover))?'
-		front_cover_re_list[#front_cover_re_list+1] = albumname .. [[( \((front|(front )?cover)\))?]]
+		front_cover_re_list[#front_cover_re_list+1] = '^' .. albumname .. '( - (front|(front )?cover))?'
+		front_cover_re_list[#front_cover_re_list+1] = '^' .. albumname .. [[( \((front|(front )?cover)\))?$]]
 		front_cover_re_list[#front_cover_re_list+1] = albumname .. [[( \[(front|(front )?cover)\])?]]
 		if artistname then
-			front_cover_re_list[#front_cover_re_list+1] = artistname .. ' - ' .. albumname .. '( - (front|(front )?cover))?'
-			front_cover_re_list[#front_cover_re_list+1] = artistname .. ' - ' .. albumname .. [[ (\((front|(front )?cover)\))?]]
-			front_cover_re_list[#front_cover_re_list+1] = artistname .. ' - ' .. albumname .. [[ (\[(front|(front )?cover)\])?]]
+			front_cover_re_list[#front_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. '( - (front|(front )?cover))$?'
+			front_cover_re_list[#front_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. [[ (\((front|(front )?cover)\))?$]]
+			front_cover_re_list[#front_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. [[ (\[(front|(front )?cover)\])?$]]
 		end
 	end
 
@@ -112,17 +116,17 @@ for file, input_cover in pairs(input.externalcovers) do
 	---- back cover
 	if not cover_type then
 		local back_cover_re_list = {
-			"back cover",
-			"back",
+			"^back cover$",
+			"^back$",
 		}
 		if albumname then
-			back_cover_re_list[#back_cover_re_list+1] = albumname .. '( - (back|(back )?cover))?'
-			back_cover_re_list[#back_cover_re_list+1] = albumname .. [[( \((back|(back )?cover)\))?]]
-			back_cover_re_list[#back_cover_re_list+1] = albumname .. [[( \[(back|(back )?cover)\])?]]
+			back_cover_re_list[#back_cover_re_list+1] = '^' .. albumname .. '( - (back|(back )?cover))$?'
+			back_cover_re_list[#back_cover_re_list+1] = '^' .. albumname .. [[( \((back|(back )?cover)\))?$]]
+			back_cover_re_list[#back_cover_re_list+1] = '^' .. albumname .. [[( \[(back|(back )?cover)\])?$]]
 			if artistname then
-				back_cover_re_list[#back_cover_re_list+1] = artistname .. ' - ' .. albumname .. '( - (back|(back )?cover))?'
-				back_cover_re_list[#back_cover_re_list+1] = artistname .. ' - ' .. albumname .. [[ (\((back|(back )?cover)\))?]]
-				back_cover_re_list[#back_cover_re_list+1] = artistname .. ' - ' .. albumname .. [[ (\[(back|(back )?cover)\])?]]
+				back_cover_re_list[#back_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. '( - (back|(back )?cover))$?'
+				back_cover_re_list[#back_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. [[ (\((back|(back )?cover)\))?$]]
+				back_cover_re_list[#back_cover_re_list+1] = '^' .. artistname .. ' - ' .. albumname .. [[ (\[(back|(back )?cover)\])?$]]
 			end
 		end
 		for _, re in ipairs(back_cover_re_list) do
@@ -136,7 +140,7 @@ for file, input_cover in pairs(input.externalcovers) do
 	if not cover_type then
 		cover_type = "other"
 	end
---
+	--
 	-- standardize file names
 	if cover_type == "front" then
 		new_base_filename = "cover"
