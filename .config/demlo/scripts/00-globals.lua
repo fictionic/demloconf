@@ -38,11 +38,26 @@ end
 -- tag contents settings --
 ---------------------------
 
+tag_settings = {}
+
 -- substitutions to make in tags
-tags_global_substitutions = {
+tag_settings.global_substitutions = {
 	-- replace various type of single quotes by "'"
 	{'[´`’]', "'"},
+	-- replace ellipsis character with three dots
+	{'…','...'},
 }
+if globsubs ~= nil then
+	for _, sub in ipairs(globsubs) do
+		table.insert(tag_settings.global_substitutions, sub)
+	end
+end
+if sub ~= nil then
+	sub = {sub:match([=[s/(.+?[^/])/(.+)]=])}
+	sub[1] = sub[1]:gsub([[\\/]], "/") 
+	-- ^ this weird stuff is to allow for escaped forward slashes in the search pattern
+	table.insert(tag_settings.global_substitutions, sub)
+end
 
 -- capitalization scheme
 -- options: 'titlecase', 'sentencecase', 'easy'
@@ -55,14 +70,42 @@ tags_global_substitutions = {
 --                    (see 11-tag-contents.lua)
 -- - 'easy' = capitalize the first letter of every word
 --            of a tag, no questions asked
-casing = 'titlecase'
+tag_settings.casing = 'titlecase'
+
+-- should parenthetical "indications" be capitalized in song titles?
+-- e.g. "Lapse (instrumental)" vs "Lapse (Instrumental)"
+tag_settings.capitalize_title_indications = false
+
+-- should parentheticals "indications" be capitalized in album titles?
+-- e.g. "Havoc (special edition)" vs "Havoc (Special Edition)"
+tag_settings.capitalize_album_indications = true
 
 -- indicate featured performer in artist tag rather than title tag
 -- (invoking the distinction between artist and album artist)
-featured_performer_in_artist = false
+tag_settings.featured_performer_in_artist = false
+
+-- how featured performers should be introduced.
+-- common choices are "Feat.", "Ft.", "ft", etc
+tag_settings.featured_performer_format = 'feat.'
+
+-- how parts of works should be indicated
+tag_settings.uni_multipart_unnamed_format = '%title%, %part_type% %index%'
+tag_settings.uni_multipart_named_format = '%title%, %part_type% %index%: %subtitle%'
+tag_settings.multi_multipart_format = '%title%, %part_type% %indeces%'
+-- whether to use roman numerals for part numbers (rather than arabic numerals)
+tag_settings.part_index_use_roman = true
+-- format for part type names
+tag_settings.part_type_name_format = {
+	-- Pt vs Part
+	['abbreviate'] = true,
+	-- Pt. vs Pt
+	['dot'] = true,
+	-- Pt vs pt
+	['capitalize'] = true
+}
 
 -- types of delimiters to use for various features
-parenthetical_feature_delimiters = {
+tag_settings.parenthetical_feature_delimiters = {
 	-- - in artist/album/title
 	['parenthetical_featured_performer'] = '[]',
 	-- - in title
@@ -83,7 +126,7 @@ parenthetical_feature_delimiters = {
 -- OR if preceded by certain words, as to make them not be prepositions
 -- but rather parts of multi-word verbs
 -- (most auto-titlecase utilties get this wrong)
-const_preposition = {
+tag_settings.const_preposition = {
 	['to'] = {},
 	['with'] = {},
 	['of'] = {},
@@ -99,7 +142,7 @@ const_preposition = {
 }
 
 -- words that should always be uppercase
-const_upper = const_upper or {
+tag_settings.const_upper = const_upper or {
 	'OK',
 	'DVD',
 	'CD',
@@ -108,7 +151,7 @@ const_upper = const_upper or {
 
 -- words that should always be lowercase
 -- unless at the start or end of a component
-const_lower = const_lower or {
+tag_settings.const_lower = const_lower or {
 -- articles
 	'the',
 	'a',
@@ -130,4 +173,15 @@ const_lower = const_lower or {
 -- other
 	'à',
 }
+
+-- PER-USE TOGGLABLES --
+------------------------
+
+-- keep all-caps words as they are?
+tag_settings.keep_all_caps = true
+if keepcaps ~= nil then tag_settings.keep_all_caps = keepcaps end
+
+-- keep mixed-case words as they are?
+tag_settings.keep_mixed_case = true
+if keepmixed ~= nil then tag_settings.keep_mixed_case = keepmixed end
 

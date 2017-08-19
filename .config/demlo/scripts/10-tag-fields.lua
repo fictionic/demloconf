@@ -9,36 +9,46 @@ debug([[\\===================//]])
 -- extract any missing tags from filepath
 debug("> Extracting tags from file path...")
 local path_components = {}
-path_components.dirname, path_components.basename = input.path:match("^/(?:[^/]+/)*([^/]+)/([^/]+)\\.[^.]+$")
+path_components.dirname, path_components.basename = input.path:match("(^/(?:[^/]+/)*[^/]+)/([^/]+)\\.[^.]+$")
 local format_tables = {
 	['dirname'] = {
 		{
+			-- "artist - album (date)/Disc N"
+			['re'] = ".*/([^/]*) - ([^/]*) \\(([0-9]{4}(?:-[0-9]{2}-[0-9]{2})?)\\)/Disc ([0-9]+)",
+			['tagnames'] = {'artist', 'album', 'date', 'disc'}
+		},
+		{
 			-- "artist - album (date)"
-			['re'] = "^(.*) - (.*) \\(([0-9]{4})\\)",
+			['re'] = ".*/([^/]+) - ([^/]+) \\(([0-9]{4}(?:-[0-9]{2}-[0-9]{2})?)\\)",
 			['tagnames'] = {'artist', 'album', 'date'}
 		},
 		{
 			-- "artist - album"
-			['re'] = "^(.*) - (.*)",
+			['re'] = ".*/([^/]*) - ([^/]*)",
 			['tagnames'] = {'artist', 'album'}
 		},
 		{
+			-- "[date] album"
+			['re'] = [=[.*/\[(\d{4}(?:-\d\d(?:-\d\d)?)?)\] ([^/]*)]=],
+			['tagnames'] = {'date', 'album'}
+		},
+		{
 			-- "album"
-			['re'] = "^(.*)",
+			['re'] = ".*/([^/]*)",
 			['tagnames'] = {'album'}
 		}
 	},
 	['basename'] = {
 		{
 			-- "disc.track. title"
-			['re'] = "^([0-9])\\.([0-9]+)\\. (.*)",
+			['re'] = "^([0-9])\\.([0-9]+)(?:\\.| -)? (.*)",
 			['tagnames'] = {'disc', 'track', 'title'}
 		},
 		{
 			-- "track. title"
-			['re'] = "^([0-9]+)\\. (.*)",
+			['re'] = "^([0-9]+)(?:\\.| -)? (.*)",
 			['tagnames'] = {'track', 'title'}
-		}
+		},
 	}
 }
 for stringname, formats in pairs(format_tables) do
@@ -52,7 +62,10 @@ for stringname, formats in pairs(format_tables) do
 				if empty(o[tagname]) then
 					o[tagname] = matches[i]
 				else
-					debug("WARNING: extracted tag differs from existing tag; using existing tag")
+					if matches[i] ~= o[tagname] then
+						debug("WARNING: extracted " .. tagname .. " differs from existing tag; using existing")
+						debug("existing " .. tagname .. ": " .. o[tagname])
+					end
 				end
 			end
 			break
@@ -81,7 +94,7 @@ if empty(o.album) then
 else
 	-- otherwise...
 	-- first fish around for the proper tag in the input
-	o.album_artist = o.album_artist or o.albumartist or o["album artist"]
+	o.album_artist = o.album_artist or o.albumartist or o["album artist"] or o["album-artist"]
 	-- then set album_artist to either the found tag or the regular artist
 	if not empty(o.album_artist) then
 		tags.album_artist = o.album_artist
