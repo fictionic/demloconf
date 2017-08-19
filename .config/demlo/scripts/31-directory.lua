@@ -3,7 +3,7 @@
 ---------------------
 
 debug([[//==================\\]])
-debug([[|| 30-directory.lua ||]])
+debug([[|| 31-directory.lua ||]])
 debug([[\\==================//]])
 
 -- set the library directory according to tags
@@ -23,39 +23,51 @@ local function append(field, before, after)
 	end
 end
 
-directory = directory or ''
-debug("COMPUTING OUTPUT DIRECTORY")
+debug("computing output directory...")
 
--- hi-res vs lo-res
-if library_dir then
-	directory = library_location .. library_dir
-	-- music vs non-music TODO
-	directory = directory .. '/music/'
-	-- torrent vs non-torrent
-	if torrent then
-		directory = directory .. 'torrents/' 
-		-- artist folder: construct from tags
-		append(o.artist)
-		directory = directory .. '/'
-		-- album folder: copy from input
-		local album_folder = input.path:match("/([^/]+)/[^/]+$")
-		append(album_folder)
-		directory = directory .. '/'
-	else
-		directory = directory .. 'non-torrents/'
-		-- artist folder: construct from tags
-		local album_artist = not empty(o.album_artist) and o.album_artist or
-			(not empty(o.artist) and o.artist or 'Unknown Artist')
-		append(album_artist)
-		directory = directory .. '/'
-		-- album folder: construct from tags
-		if not empty(o.album) then
-			append(o.date, '[', '] ')
-			debug("appending album")
-			append(o.album)
+directory = dir or ''
+if empty(directory) then
+	-- hi-res vs lo-res
+	if library_dir then
+		debug("assembling directory from tags...")
+		directory = library_location .. library_dir
+		-- music vs non-music TODO
+		directory = directory .. '/music/'
+		-- torrent vs non-torrent
+		if torrent then
+			directory = directory .. 'torrents/' 
+			-- artist folder: construct from tags
+			append(o.artist)
 			directory = directory .. '/'
+			-- album folder: copy from input
+			local album_folder = input.path:match("/([^/]+)/[^/]+$")
+			append(album_folder)
+			directory = directory .. '/'
+		else
+			directory = directory .. 'non-torrents/'
+			-- artist folder: construct from tags
+			local album_artist = not empty(o.album_artist) and o.album_artist or
+				(not empty(o.artist) and o.artist or 'Unknown Artist')
+			append(album_artist)
+			directory = directory .. '/'
+			-- album folder: construct from tags
+			if not empty(o.album) then
+				append(o.date, '[', '] ')
+				debug("appending album")
+				append(o.album)
+				directory = directory .. '/'
+			end
 		end
+	else
+		-- extract default directory from input path
+		debug("extracting directory from input path...")
+		directory = input.path:match("^(.+?/)[^/]+\\.[^.]+$")
 	end
+else
+	debug("using given directory: '" .. dir .. "'")
 end
 
-debug("OUTPUT DIRECTORY: '" .. directory .. "'")
+-- ensure there is an ending slash
+directory = directory:gsub("/$","") .. "/" or "./"
+
+debug("computed output directory: '" .. directory .. "'")

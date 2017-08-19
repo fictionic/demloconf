@@ -2,9 +2,9 @@
 -- 30: OUTPUT PATH --
 ---------------------
 
--- debug([[//=================\\]])
--- debug([[|| 31-basename.lua ||]])
--- debug([[\\=================//]])
+debug([[//=================\\]])
+debug([[|| 30-basename.lua ||]])
+debug([[\\=================//]])
 
 apply_pathsubs = apply_pathsubs or function (s)
 	for bad, good in pairs(pathsubs) do
@@ -21,20 +21,36 @@ local function append(field, before, after)
 	end
 end
 
-basename = ''
+basename = name or ''
 
--- torrent vs non-torrent
-if not torrent then
+if empty(basename) and not torrent and o.title then
+	debug("computing basename from tags...")
 	-- filename: construct from tags
-	local track_padded = '' -- TODO: smarter zero padding amounts (if there's an album with 100+ songs)
-	if not empty (o.track) and tonumber(o.track) then
-		track_padded = string.format('%02d', o.track)
+	if not empty(o.disc) then
+		append(o.disc, nil, '.')
 	end
-	append(o.disc, nil, '.')
-	append(track_padded, nil, '. ')
-	if o.artist ~= o.album_artist then
-		append(o.artist, nil, ' - ')
+	local track_padded
+	if not empty(o.track) and tonumber(o.track) then
+		track_padded = string.format('%02d', o.track)
+		append(track_padded, nil, '. ')
+		-- TODO: smarter zero padding amounts (if there's an album with 100+ songs)
+	end
+	if o.album_artist and (various_artists_format_always_allowed or o.album_artist:match("[Vv]arious( [Aa]rtists)?")) then
+		-- check if filename should indicate artist
+		if o.artist ~= o.album_artist then
+			append(o.artist, nil, ' - ')
+		end
 	end
 	append(o.title)
+else
+	if name then
+		-- keep basename as-is
+		debug("using given basename")
+	else
+		-- use given basename
+		debug("using old basename")
+		basename = input.path:match("^.+?/([^/]+)\\.[^.]+$")
+	end
 end
--- (otherwise let it be copied from input by 50-path)
+
+debug("basename: '" .. basename .. "'")

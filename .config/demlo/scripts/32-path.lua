@@ -2,25 +2,29 @@
 -- 30: OUTPUT PATH --
 ---------------------
 
--- debug([[//=============\\]])
--- debug([[|| 32-path.lua ||]])
--- debug([[\\=============//]])
+debug([[//=============\\]])
+debug([[|| 32-path.lua ||]])
+debug([[\\=============//]])
+
+-- get basename and directory in case those scripts weren't run
+basename = name or basename
+if basename == nil then
+	debug("using old basename...")
+	basename = input.path:match("^.+?/([^/]+)\\.[^.]+$")
+end
+directory = dir or directory
+if directory == nil then
+	debug("using old directory...")
+	directory = input.path:match("^(.+?/)[^/]+\\.[^.]+$")
+end
 
 -- set extension based on format
-local extension = extension or output.format
-
--- extract default directory, basename from input path
-local directory_default, basename_default = input.path:match("^(.+?/)([^/]+)\\.[^.]+$")
-
-if empty(directory) then
-	directory = directory_default
+local extension = ext or output.format
+if ext then
+	debug("using given extension: '" .. ext .. "'")
+else
+	debug("computed extension from output format: '" .. extension .. "'")
 end
-if empty(basename) then
-	basename = basename_default
-end
-
--- put ending slash in user-entered directory, if present
-directory = directory:gsub("/$","") .. "/" or "./"
 
 -- set output.path
 output.path = directory .. basename .. '.' .. extension
