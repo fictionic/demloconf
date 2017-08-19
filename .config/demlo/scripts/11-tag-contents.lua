@@ -1,6 +1,6 @@
------------------------
--- 11: SANITIZE TAGS --
------------------------
+-------------------------------
+-- 11: SANITIZE TAG CONTENTS --
+-------------------------------
 
 debug([[//=====================\\]])
 debug([[|| 11-tag-contents.lua ||]])
@@ -47,13 +47,56 @@ local function add_component(tag, component, capitalize)
 	end
 end
 
+--------------------------------------
+-- for converting decimal numbers to roman numerals
+local function decimal_to_roman(s)
+	numbers = {1, 5, 10, 50, 100, 500, 1000}
+	chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
+	if s == '' then return '' end
+	d = tonumber(s)
+	if not d or d ~= d then return '' end
+	d = math.floor(d)
+	local ret = ""
+	for i = #numbers, 1, -1 do
+		local num = numbers[i]
+		while d - num >= 0 and d > 0 do
+			ret = ret .. chars[i]
+			d = d - num
+		end
+		for j = 1, i - 1 do
+			local n2 = numbers[j]
+			if d - (num - n2) >= 0 and d < num and d > 0 and num - n2 ~= n2 then
+				ret = ret .. chars[j] .. chars[i]
+				d = d - (num - n2)
+				break
+			end
+		end
+	end
+	return ret
+end
+-- for converting english number words into roman numerals
+local function english_to_roman(s)
+	mapping = {
+		['one'] = 'I',
+		['two'] = 'II',
+		['three'] = 'III',
+		['four'] = 'IV',
+		['five'] = 'V',
+		['six'] = 'VI',
+		['seven'] = 'VII',
+		['eight'] = 'VIII',
+		['nine'] = 'IX',
+		['ten'] = 'X'
+	}
+	return mapping[s]
+end
+
 -----------------------
 -- FEATURE TEMPLATES --
 -----------------------
 
-local featured_performer_in_artist = nil
-local disc_number_in_album = nil
-local part_introducer = ','
+local featured_performer_from_artist = nil
+local disc_number_from_album = nil
 
 -- non-parenthetical featured performer
 -- e.g. title: "Forever, Feat. Eminem"
@@ -63,7 +106,7 @@ local non_parenthetical_featured_performer = {
 	['func'] = function (tag, matches, rest)
 		debug("found non-parenthetical featured performer")
 		if tag == 'artist' then
-			featured_performer_in_artist = matches[2]
+			featured_performer_from_artist = matches[2]
 		else -- tag == 'title'
 			add_component(tag, '[feat. ', false)
 			add_component(tag, matches[2], true)
@@ -86,26 +129,43 @@ local polytitle = {
 	end
 }
 
-local part_introducer_re = "(?: ?[-,:;–] ?)?"
-local part_type_re = [=[(?i:pt\.?|part|vol\.|volume)]=]
+local part_introducer_re = "(?: ?[-,:;–]? ?)"
+local part_type_re = [=[(?i:pt\.?|part|vol\.?|volume)]=]
+-- local part_type_re = [=[\b[^ ]+\b]=]
 local part_type_index_sep_re = "[- _]"
-local part_index_re = "(?:[0-9IVXLCDM]+|(?i:one|two|three|four|five|six|seven|eight|nine|ten))"
+local part_index_re = "(?:[0-9IVXLCDM]+|(?i:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty))"
 local part_subtitle_introducer_re = "( ??[-,.:])?"
 
 -- titles indicating multiple parts of a work
+-- e.g. "TEAR, Pt. I"
+-- e.g. "Metropolis, Pt. I: The Miracle and the Sleeper"
+-- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
+-- e.g. "Through the Looking Glass, Pts. I-III"
+-- e.g. "Phase I: Singularity - The Theory of Everything, Pt. I"
 local multipart = {
-	['re'] = '(' .. ')',
+	['re'] = '(' .. part_introducer_re .. '(' .. part_type_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. part_subtitle_introducer_re .. ')',
 	['func'] = function (tag, matches, rest)
+		debug("found multi-part indication")
 	end
 }
+
+-- types of multipart titles
+--		title, type index
+--		title, type index1-indexN
+--		title, type index: subtitle
+--		title, type1 index1: subtitle1; type1 index2; subtitle2; ...
+--		type1 index1: subtitle1 - type2 index21: subtitle21
 
 -- one part indicated at a time
 -- e.g. "TEAR, Pt. 1"
 -- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
 local uni_multipart = {
-	['re'] = "(" .. part_introducer_re .. "(" .. part_type_re .. ")" .. part_type_index_sep_re .. "(" .. part_index_re .. ")" .. part_subtitle_introducer_re .. ")",
+	['re'] = '(' .. part_introducer_re .. '(' .. part_type_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. part_subtitle_introducer_re .. ')',
 	['func'] = function (tag, matches, rest)
 		debug("found multi-part indication")
+		if part_introducer == nil then
+			part_introducer = ','
+		end
 		partindex = matches[3]
 		if partindex:match('[0-9]+') then
 			oldpartindex = partindex
@@ -123,7 +183,7 @@ local uni_multipart = {
 		elseif matches[2]:match([[(?i:vol\.?)]]) then
 			to_add = part_introducer .. ' Vol. ' .. partindex
 		else
-			to_add = part_introducer .. ' Pt. ' .. partindex
+			to_add = part_introducer .. " Pt. " .. partindex
 		end
 		if rest:len() > 0 then to_add = to_add .. ':' end -- if there's a subtitle we should delimit it with a colon
 		add_component(tag, to_add, false)
@@ -165,7 +225,7 @@ local multi_multipart = {
 -- > BUT NOT e.g. "You Eat Houmous, of Course You Listen to Genesis"
 -- ('of' should be uncapitalized)
 local clause = {
-	['re'] = [=[(\.|[?!]+|:|;| -|—) ]=],
+	['re'] = [=[((?:\.|[?!]+|:|;| -|—) )]=],
 	['func'] = function (tag, matches, rest)
 		debug("found clause delimiter")
 		add_component(tag, matches[1], false)
@@ -179,7 +239,7 @@ local disc_indication = {
 	['re'] = "( (?:[dD]is[ck]|CD) ?([[:digit:]]+)(?:/[[:digit:]]+)?)",
 	['func'] = function (tag, matches, rest)
 		debug("found discnumber indication")
-		disc_number_in_album = matches[2]
+		disc_number_from_album = matches[2]
 		return rest
 	end
 }
@@ -253,8 +313,8 @@ local parenthetical_featured_performer = {
 	['func'] = function (tag, matches) 
 		debug("found parenthetical featured performer")
 		if tag == 'artist' then
-			featured_performer_in_artist = matches[1]
-		else
+			featured_performer_from_artist = matches[1]
+		else -- tag == 'title'
 			add_component(tag, '[feat. ', false)
 			add_component(tag, matches[1] .. ']', true)
 		end
@@ -282,7 +342,7 @@ local parenthetical_alternate_mix_indication = {
 		mix_type = mix_type:lower()
 		to_add = to_add .. mix_type
 		if #matches[3]  > 0 then
-			to_add = to_add .. ' feat. ' .. matches[3]
+			to_add = to_add .. ' ' .. tag_settings.featured_performer_format .. ' ' .. matches[3]
 		end
 		to_add = to_add .. ')'
 		add_component(tag, to_add, false)
@@ -290,19 +350,23 @@ local parenthetical_alternate_mix_indication = {
 }
 
 local parenthetical_alternate_recording_indication = {
-	['re'] = "^(?i:((?:demo|(?:early|earlier|demo) version)|(?:(?:acoustic|studio|live(?: from (.*))?)(?: version)?)))$",
+	['re'] = "^(?i:((?:demo|(?:early|earlier|demo) version)|(?:(?:acoustic|studio)?)(?: version)?))$",
 	['func'] = function (tag, matches)
 		debug("found alternate recording indication")
 		if matches[1]:match("^[Dd]emo [Vv]ersion$") then
 			matches[1] = "demo"
 		end
-		debug("=====")
-		for _, match in ipairs(matches) do
-			debug(match)
-		end
-		debug("=====")
-		-- TODO: lowercase "live" when parenthetical goes "Live from/at <venue>"
 		add_component(tag, '(' .. matches[1]:lower() .. ')', false)
+	end
+}
+
+local parenthetical_live_recording_indication = {
+	['re'] = "(?i:live(?: (from|at) (the )?(.*))?)",
+	['func'] = function (tag, matches)
+		debug("found live recording indication")
+		add_component(tag, '(live ' .. matches[1]:lower() .. ' ' .. matches[2]:lower(), false)
+		add_component(tag, matches[3], true)
+		add_component(tag, ')', false)
 	end
 }
 
@@ -311,7 +375,7 @@ local parenthetical_alternate_version_indication = {
 	['func'] = function (tag, matches)
 		debug("found alternate version indication")
 		add_component(tag, '(', false)
-		if matches[1]:match('^(?i:alternate|earl(y|ier)|strings|saxophones)$') then
+		if matches[1]:match('^(?i:alternate|earl(y|ier)|strings|ukulele|saxophones)$') then
 			add_component(tag, matches[1]:lower(), false)
 		else
 			add_component(tag, matches[1], true)
@@ -333,7 +397,7 @@ local parenthetical_disc_indication = {
 	['func'] = function (tag, matches)
 		debug("found parenthetical discnumber indication")
 		-- (don't add any component to tag)
-		disc_number_in_album = matches[1]
+		disc_number_from_album = matches[1]
 	end
 }
 
@@ -407,6 +471,7 @@ local parenthetical_possibilities = {
 		parenthetical_featured_performer,
 		parenthetical_alternate_mix_indication,
 		parenthetical_alternate_recording_indication,
+		parenthetical_live_recording_indication,
 		parenthetical_alternate_version_indication,
 		parenthetical_cover_indication,
 		parenthetical_instrumental_indication,
@@ -507,7 +572,6 @@ local possible_components = {
 -- the main function
 local function analyze_tag(tag)
 	cap_next = true
-	part_introducer = ','
 	remaining = tags[tag]
 	while true do
 		local closest_component = nil
@@ -554,7 +618,11 @@ end
 -- do the analysis --
 ---------------------
 
-debug(">> ANALYZING TAGS")
+debug([[   --------------   ]])
+debug([[>> analyzing tags <<]])
+debug([[   --------------   ]])
+
+tags = tags or {} -- in case 10-tag-fields wasn't run
 
 components = {}
 for tag, _ in pairs(tags) do
@@ -566,15 +634,15 @@ for tag, _ in pairs(tags) do
 end
 
 -- append featured performer from artist to title
-if featured_performer_in_artist then
+if featured_performer_from_artist then
 	debug("appending featured performer indication to title")
-	add_component('title', ' (feat. ' .. featured_performer_in_artist .. ')', false)
+	add_component('title', ' (feat. ' .. featured_performer_from_artist .. ')', false)
 end
 
 -- set discnumber to any found in album
-if disc_number_in_album then
+if disc_number_from_album then
 	debug("setting discnumber to that found in album tag")
-	tags.disc = disc_number_in_album
+	tags.disc = disc_number_from_album
 end
 
 
@@ -582,7 +650,9 @@ end
 --	SYNTHESIZE TAGS
 ------------------------------------
 
-debug(">> ASSEMBLING TAGS")
+debug([[   ---------------   ]])
+debug([[>> assembling tags <<]])
+debug([[   ---------------   ]])
 
 -- analyze & fix composer
 if not empty(tags.composer) then
@@ -592,7 +662,6 @@ if not empty(tags.composer) then
 	else
 		-- if composer is made up of semicolon-separated names,
 		-- change the semicolons to commas
-		tags.composer = tags.composer
 		if string.match(tags.composer, "^(?:[^;]+; )+[^;]+$") then
 			tags.composer = tags.composer:gsub(";", ",")
 		end
@@ -646,7 +715,7 @@ local function setcase(input)
 		-- Constants (only check if not the first or last word)
 		if i > 1 and i < #seps_words then
 			-- lowercase constants
-			for _, c in ipairs(const_lower) do
+			for _, c in ipairs(tag_settings.const_lower) do
 				if lower == c then
 					if word ~= c then
 						debug("matched lowercase constant '" .. word .. "' --> '" .. lower .. "'")
@@ -657,7 +726,7 @@ local function setcase(input)
 				end
 			end
 			-- prepositions
-			for c, list in pairs(const_preposition) do
+			for c, list in pairs(tag_settings.const_preposition) do
 				if lower == c then
 					matched_exception = false
 					for _, preceding_word in ipairs(list) do
@@ -679,7 +748,7 @@ local function setcase(input)
 				end
 			end
 			-- uppercase constants
-			for _, c in ipairs(const_upper) do
+			for _, c in ipairs(tag_settings.const_upper) do
 				if upper == c then
 					if word ~= upper then
 						debug("matched uppercase constant '" .. word "' --> '" .. upper .. "'")
@@ -703,16 +772,20 @@ local function setcase(input)
 			casing = LEAVE_ALONE
 		end
 
-		-- Words that are at least 2 characters long and already all-caps
-		if not matched and word:match('^[[:upper:]]{2,}$') then
-			debug("matched all-caps word: '" .. word .. "'")
-			casing = LEAVE_ALONE
+		if tag_settings.keep_all_caps then
+			-- Words that are at least 2 characters long and already all-caps
+			if not matched and word:match('^[[:upper:]]{2,}$') then
+				debug("matched all-caps word: '" .. word .. "'")
+				casing = LEAVE_ALONE
+			end
 		end
 
-		-- Words that are longer than 2 characters and already mixed-case
-		if not matched and word:match('(?:.+?[[:upper:]][[:lower:]]|[[:lower:]]+?[[:upper:]])') then
-			debug("matched mixed-case word: '" .. word .. "'")
-			casing = LEAVE_ALONE
+		if tag_settings.keep_mixed_case then
+			-- Words that are longer than 2 characters and already mixed-case
+			if not matched and word:match('(?:.+?[[:upper:]][[:lower:]]|[[:lower:]]+?[[:upper:]])') then
+				debug("matched mixed-case word: '" .. word .. "'")
+				casing = LEAVE_ALONE
+			end
 		end
 
 		-- capitalize the first word of the component
@@ -802,8 +875,13 @@ end
 
 -- apply global substitutions
 for k, _ in pairs(tags) do
-	for _, rule in ipairs(tags_global_substitutions) do
-		tags[k] = tags[k]:gsub(rule[1], rule[2])
+	for _, rule in ipairs(tag_settings.global_substitutions) do
+		newtag = tags[k]:gsub(rule[1], rule[2])
+		if newtag ~= tags[k] then
+			debug("> performing global substitution on " .. k .. ": '" .. rule[1] .. "' -> '" .. rule[2] .. "'")
+			tags[k] = newtag
+			debug(tags[k])
+		end
 	end
 end
 
@@ -814,49 +892,3 @@ end
 
 -- replace all tags
 output.tags = tags
-
-
---------------------------------------
--- for converting decimal numbers to roman numerals
-local function decimal_to_roman(s)
-	numbers = {1, 5, 10, 50, 100, 500, 1000}
-	chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
-	if s == '' then return '' end
-	d = tonumber(s)
-	if not d or d ~= d then return '' end
-	d = math.floor(d)
-	local ret = ""
-	for i = #numbers, 1, -1 do
-		local num = numbers[i]
-		while d - num >= 0 and d > 0 do
-			ret = ret .. chars[i]
-			d = d - num
-		end
-		for j = 1, i - 1 do
-			local n2 = numbers[j]
-			if d - (num - n2) >= 0 and d < num and d > 0 and num - n2 ~= n2 then
-				ret = ret .. chars[j] .. chars[i]
-				d = d - (num - n2)
-				break
-			end
-		end
-	end
-	return ret
-end
--- for converting english number words into roman numerals
-local function english_to_roman(s)
-	mapping = {
-		['one'] = 'I',
-		['two'] = 'II',
-		['three'] = 'III',
-		['four'] = 'IV',
-		['five'] = 'V',
-		['six'] = 'VI',
-		['seven'] = 'VII',
-		['eight'] = 'VIII',
-		['nine'] = 'IX',
-		['ten'] = 'X'
-	}
-	return mapping[s]
-end
-
