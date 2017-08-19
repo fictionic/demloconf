@@ -13,7 +13,7 @@ output.rmsrc = true
 
 -- encoding map: * -> flac
 encoding_map = {
-	['wav'] = {
+	['.*'] = {
 		['format'] = 'flac',
 		['parameters'] = {'-c:a', 'flac', '-aq', '8'}
 	},
