@@ -774,7 +774,7 @@ local function setcase(input)
 
 		if tag_settings.keep_all_caps then
 			-- Words that are at least 2 characters long and already all-caps
-			if not matched and word:match('^[[:upper:]]{2,}$') then
+			if not matched and word:len() > 2 and word == word:upper() then
 				debug("matched all-caps word: '" .. word .. "'")
 				casing = LEAVE_ALONE
 			end
@@ -784,6 +784,14 @@ local function setcase(input)
 			-- Words that are longer than 2 characters and already mixed-case
 			if not matched and word:match('(?:.+?[[:upper:]][[:lower:]]|[[:lower:]]+?[[:upper:]])') then
 				debug("matched mixed-case word: '" .. word .. "'")
+				casing = LEAVE_ALONE
+			end
+		end
+
+		if tag_settings.keep_all_lower then
+			-- Words that are longer than 2 characters and already all lowercase
+			if not matched and word:len() > 2 and word == word:lower() then
+				debug("matched all-lowercase word: '" .. word .. "'")
 				casing = LEAVE_ALONE
 			end
 		end
