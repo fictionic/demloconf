@@ -23,6 +23,9 @@ local extension = ext or output.format
 if ext then
 	debug("using given extension: '" .. ext .. "'")
 else
+	if extension == 'mp4' then
+		extension = 'm4a'
+	end
 	debug("computed extension from output format: '" .. extension .. "'")
 end
 
