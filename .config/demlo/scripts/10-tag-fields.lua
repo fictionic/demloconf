@@ -10,6 +10,8 @@ debug([[\\===================//]])
 debug("> Extracting tags from file path...")
 local path_components = {}
 path_components.dirname, path_components.basename = input.path:match("(^/(?:[^/]+/)*[^/]+)/([^/]+)\\.[^.]+$")
+
+-- builtin format strings
 local format_tables = {
 	['dirname'] = {
 		{
@@ -41,7 +43,7 @@ local format_tables = {
 	['basename'] = {
 		{
 			-- "disc.track. title"
-			['re'] = "^([0-9])\\.([0-9]+)(?:\\.| -)? (.*)",
+			['re'] = "^([0-9]+)\\.([0-9]+)(?:\\.| -)? (.*)",
 			['tagnames'] = {'disc', 'track', 'title'}
 		},
 		{
@@ -51,10 +53,46 @@ local format_tables = {
 		},
 	}
 }
+
+-- if the user provided a format string
+if not empty(basenameformat) then
+	local basename_format_table = {
+		['re'] = '',
+		['tagnames'] = {}
+	}
+	local tag_mapping = {
+		['date'] = [[\d{4}(?:-\d\d(?:-\d\d)?)?]],
+		['disc'] = '[0-9]+',
+		['track'] = '[0-9]+',
+		-- all the rest are '.*' by default
+	}
+	-- construct format table
+	for tagname in basenameformat:gmatch([[%\(([^)]+)\)]]) do
+		local re, nongreedy
+		if tagname:sub(-1) == '?' then
+			tagname = tagname:sub(1,-2)
+			re = tag_mapping[tagname] or '.+?'
+			basenameformat = basenameformat:gsub([[%\(]] .. tagname .. [[\?\)]], "(" .. re .. ")")
+		else
+			re = tag_mapping[tagname] or '.+'
+			basenameformat = basenameformat:gsub([[%\(]] .. tagname .. [[\)]], "(" .. re .. ")")
+		end
+		table.insert(basename_format_table['tagnames'], tagname)
+	end
+	basename_format_table['re'] = basenameformat
+	debug(basenameformat)
+	if path_components.basename:match(basenameformat) then
+		debug("user format string matched; using")
+		format_tables['basename'] = {basename_format_table}
+	else
+		debug("user format string does not match; falling back on builtins")
+	end
+end
+
 for stringname, formats in pairs(format_tables) do
-	string = path_components[stringname]
+	local string = path_components[stringname]
 	for _, format in ipairs(formats) do
-		matches = {string:match(format.re)}
+		local matches = {string:match(format.re)}
 		if #matches > 0 then
 			-- assign tags
 			for i, tagname in ipairs(format.tagnames) do
