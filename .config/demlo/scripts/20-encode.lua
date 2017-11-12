@@ -14,7 +14,8 @@ debug([[\\===============//]])
 
 -- set output format
 local found_format = false
-for f, settings in pairs(encoding_map) do
+for _, mapping in ipairs(encoding_map) do
+	f, settings = mapping[1], mapping[2]
 	if input.format.format_name:match(f) then
 		output.format = settings.format or input.format.format_name
 		output.parameters = settings.parameters

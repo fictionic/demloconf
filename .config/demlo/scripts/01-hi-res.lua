@@ -13,13 +13,19 @@ output.rmsrc = true
 
 -- lossless -> flac, lossy -> copy
 encoding_map = {
-	['(wav|flac)'] = {
-		['format'] = 'flac',
-		['parameters'] = {'-c:a', 'flac', '-aq', '8'}
+	{
+		'(wav|flac)',
+		{
+			['format'] = 'flac',
+			['parameters'] = {'-c:a', 'flac', '-aq', '8'}
+		}
 	},
-	['.*'] = {
-		['format'] = nil,
-		['parameters'] = {'-c:a', 'copy'}
+	{
+		'.*',
+		{
+			['format'] = nil,
+			['parameters'] = {'-c:a', 'copy'} 
+		}
 	}
 }
 

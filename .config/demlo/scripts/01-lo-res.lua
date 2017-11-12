@@ -11,13 +11,19 @@ library_dir = 'lo-res'
 output.rmsrc = false
 -- flac -> vorbis q5; lossy -> copy
 encoding_map = {
-	['flac'] = {
-		['format'] = 'ogg',
-		['parameters'] = {'-c:a', 'libvorbis', '-q:a', '5'}
+	{
+		'flac',
+		{
+			['format'] = 'ogg',
+			['parameters'] = {'-c:a', 'libvorbis', '-q:a', '5'}
+		}
 	},
-	['mp3|mp4|m4a|ogg'] = {
-		['format'] = nil,
-		['parameters'] = {'-c:a', 'copy'}
+	{
+		'mp3|mp4|m4a|ogg',
+		{
+			['format'] = nil,
+			['parameters'] = {'-c:a', 'copy'}
+		}
 	}
 }
 -- only use front cover

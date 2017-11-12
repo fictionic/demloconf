@@ -13,11 +13,15 @@ LOCAL_COVER_SIZE_LIMIT = 20000
 -- association between input_format and {output_format, output_parameters}
 -- (set output_format = nil to use input format)
 default_encoding_map = {
-	['.*'] = {
-		['format'] = nil,
-		['parameters'] = {'-c:a', 'copy'}
+	{
+		'.*',
+		{
+			['format'] = nil,
+			['parameters'] = {'-c:a', 'copy'} 
+		}
 	}
 }
+
 
 -- substitutions to make in filepaths:
 default_pathsubs = {
@@ -184,4 +188,8 @@ if keepcaps ~= nil then tag_settings.keep_all_caps = keepcaps end
 -- keep mixed-case words as they are?
 tag_settings.keep_mixed_case = true
 if keepmixed ~= nil then tag_settings.keep_mixed_case = keepmixed end
+
+-- keep all-lowercase words as they are?
+tag_settings.keep_all_lower = true
+if keeplower ~= nil then tag_settings.keep_all_lower = keeplower end
 
