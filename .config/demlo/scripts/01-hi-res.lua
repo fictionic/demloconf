@@ -6,13 +6,13 @@
 ---------------------------------
 
 -- import to hi-res library
-library_dir = 'hi-res'
+settings.library.sublibrary = 'hi-res'
 
 -- don't keep original files
 output.rmsrc = true
 
 -- lossless -> flac, lossy -> copy
-encoding_map = {
+settings.encode.map = {
 	{
 		'(wav|flac)',
 		{
@@ -30,10 +30,10 @@ encoding_map = {
 }
 
 -- use all cover types
-cover_types = {"front", "back", "other"}
+settings.cover.types = settings.cover.types_all
 
 -- downscale ultra-high-res covers
-COVER_LIMIT_HIGH = LOCAL_COVER_SIZE_LIMIT
+settings.cover.size_limit = settings.cover.size_limit_local
 
 -- apply minimal path substitutions
-pathsubs = default_pathsubs
+settings.path.substitutions = settings.path.default_substitutions

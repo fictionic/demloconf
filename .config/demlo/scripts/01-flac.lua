@@ -6,27 +6,27 @@
 ---------------------------------
 
 -- library: 'hi-res', 'lo-res', or nil
-library_dir = nil
+settings.library.sublibrary = nil
 
 -- remove source, cuz we don't want wav files
 output.rmsrc = true
 
--- encoding map: * -> flac
-encoding_map = {
+-- encoding map: * -> fully-compressed CD-resolution flac
+settings.encode.map = {
 	{
 		'.*',
 		{
 			['format'] = 'flac',
-			['parameters'] = {'-c:a', 'flac', '-aq', '8'}
+			['parameters'] = {'-c:a', 'flac', '-aq', '8', '-sample_fmt', 's16', '-ar', '44100'}
 		}
 	},
 }
 
--- types of cover art to use
-cover_types = {}
+-- use all cover types
+settings.cover.types = settings.cover.types_all
 
 -- downscale ultra-high-res covers
-COVER_LIMIT_HIGH = nil
+settings.cover.size_limit = settings.cover.size_limit_local
 
 -- apply minimal path substitutions
-pathsubs = default_pathsubs
+settings.path.substitutions = settings.path.default_substitutions

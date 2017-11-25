@@ -6,13 +6,13 @@
 --------------------------------------
 
 -- don't put it in a library
-library_dir = nil
+settings.library.sublibrary = nil
 
 -- keep original files
 output.rmsrc = false
 
 -- encode to MP3 V0
-encoding_map = {
+settings.encode.map = {
 	{
 		'.*',
 		{
@@ -23,10 +23,10 @@ encoding_map = {
 }
 
 -- only use front cover
-cover_types = {"front"}
+settings.cover.types = {"front"}
 
 -- keep high-res covers
-COVER_LIMIT_HIGH = LOCAL_COVER_SIZE_LIMIT
+settings.cover.size_limit = settings.cover.size_limit_portable
 
 -- apply strict pathsubs
-pathsubs = strict_pathsubs
+settings.path.substitutions = settings.path.strict_substitutions

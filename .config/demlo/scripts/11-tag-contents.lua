@@ -19,7 +19,7 @@ debug([[\\=====================//]])
 --
 -- Tag values are broken into components by being matched against 'feature templates'. A feature
 -- template is a regular expression that is meant to match on certain portions of certain tags,
--- along with a function that assembles the substrings into a sanitized string. That is, they 
+-- along with a function that assembles the substrings into a sanitized string. That is, they
 -- have a meaning associated with them, and this meaning determines which portions of the matching
 -- string should be put into components in which way.
 --
@@ -47,15 +47,16 @@ local function add_component(tag, component, capitalize)
 	end
 end
 
---------------------------------------
+----------------------------- UTILITY FUNCTIONS ----------------------------
 -- for converting decimal numbers to roman numerals
 local function decimal_to_roman(s)
-	numbers = {1, 5, 10, 50, 100, 500, 1000}
-	chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
 	if s == '' then return '' end
-	d = tonumber(s)
+	if s == '0' then return s end
+	local d = tonumber(s)
 	if not d or d ~= d then return '' end
 	d = math.floor(d)
+	local numbers = {1, 5, 10, 50, 100, 500, 1000}
+	local chars = {'I', 'V', 'X', 'L', 'C', 'D', 'M'}
 	local ret = ""
 	for i = #numbers, 1, -1 do
 		local num = numbers[i]
@@ -76,25 +77,23 @@ local function decimal_to_roman(s)
 end
 -- for converting english number words into roman numerals
 local function english_to_roman(s)
-	mapping = {
-		['one'] = 'I',
-		['two'] = 'II',
-		['three'] = 'III',
-		['four'] = 'IV',
-		['five'] = 'V',
-		['six'] = 'VI',
-		['seven'] = 'VII',
-		['eight'] = 'VIII',
-		['nine'] = 'IX',
-		['ten'] = 'X'
+	local names = {
+		'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+		'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen',
+		'eighteen', 'nineteen', 'twenty'
 	}
-	return mapping[s]
+	for decimal, english in ipairs(names) do
+		if english == s then
+			return decimal_to_roman(tostring(decimal-1))
+		end
+	end
 end
 
------------------------
--- FEATURE TEMPLATES --
------------------------
+-------------------------------------------------------------------------
+--------------------------- FEATURE TEMPLATES ---------------------------
+-------------------------------------------------------------------------
 
+-- info possibly extracted during the analysis
 local featured_performer_from_artist = nil
 local disc_number_from_album = nil
 
@@ -103,12 +102,12 @@ local disc_number_from_album = nil
 -- e.g. artist: "Drake Ft Eminem"
 local non_parenthetical_featured_performer = {
 	['re'] = [[((?:,| -)? (?i:f(?:ea)?t(?:\.|uring)?) (.*))$]],
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
 		debug("found non-parenthetical featured performer")
 		if tag == 'artist' then
 			featured_performer_from_artist = matches[2]
 		else -- tag == 'title'
-			add_component(tag, '[feat. ', false)
+			add_component(tag, '[' .. settings.tag.featured_performer_format .. ' ', false)
 			add_component(tag, matches[2], true)
 			add_component(tag, ']', false)
 		end
@@ -122,100 +121,9 @@ local non_parenthetical_featured_performer = {
 -- but NOT, e.g., "Action/Reaction"
 local polytitle = {
 	['re'] = "( / |, [oO]r, )",
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
 		debug("found polytitle indication")
 		add_component(tag, matches[1]:lower(), false)
-		return rest
-	end
-}
-
-local part_introducer_re = "(?: ?[-,:;–]? ?)"
-local part_type_re = [=[(?i:pt\.?|part|vol\.?|volume)]=]
--- local part_type_re = [=[\b[^ ]+\b]=]
-local part_type_index_sep_re = "[- _]"
-local part_index_re = "(?:[0-9IVXLCDM]+|(?i:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty))"
-local part_subtitle_introducer_re = "( ??[-,.:])?"
-
--- titles indicating multiple parts of a work
--- e.g. "TEAR, Pt. I"
--- e.g. "Metropolis, Pt. I: The Miracle and the Sleeper"
--- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
--- e.g. "Through the Looking Glass, Pts. I-III"
--- e.g. "Phase I: Singularity - The Theory of Everything, Pt. I"
-local multipart = {
-	['re'] = '(' .. part_introducer_re .. '(' .. part_type_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. part_subtitle_introducer_re .. ')',
-	['func'] = function (tag, matches, rest)
-		debug("found multi-part indication")
-	end
-}
-
--- types of multipart titles
---		title, type index
---		title, type index1-indexN
---		title, type index: subtitle
---		title, type1 index1: subtitle1; type1 index2; subtitle2; ...
---		type1 index1: subtitle1 - type2 index21: subtitle21
-
--- one part indicated at a time
--- e.g. "TEAR, Pt. 1"
--- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
-local uni_multipart = {
-	['re'] = '(' .. part_introducer_re .. '(' .. part_type_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. part_subtitle_introducer_re .. ')',
-	['func'] = function (tag, matches, rest)
-		debug("found multi-part indication")
-		if part_introducer == nil then
-			part_introducer = ','
-		end
-		partindex = matches[3]
-		if partindex:match('[0-9]+') then
-			oldpartindex = partindex
-			partindex = decimal_to_roman(oldpartindex)
-			debug('partindex: ' .. oldpartindex .. ' -> ' .. partindex)
-		elseif not partindex:match('[IVXLCDM]+') then
-			oldpartindex = partindex
-			partindex = english_to_roman(oldpartindex:lower())
-			debug('partindex: ' .. oldpartindex .. ' -> ' .. partindex)
-		else
-			debug('partindex: ' .. partindex)
-		end
-		if matches[2]:match([[(?i:volume)]]) then
-			to_add = part_introducer .. ' Volume ' .. partindex
-		elseif matches[2]:match([[(?i:vol\.?)]]) then
-			to_add = part_introducer .. ' Vol. ' .. partindex
-		else
-			to_add = part_introducer .. " Pt. " .. partindex
-		end
-		if rest:len() > 0 then to_add = to_add .. ':' end -- if there's a subtitle we should delimit it with a colon
-		add_component(tag, to_add, false)
-		part_introducer = ';' -- if multiple parts are indicated in the same tag, we should separate them with a semicolon, not a comma
-		-- TODO: take out surrounding parentheses from subtitle (next component) if present?
-		return rest
-	end
-}
-
--- titles indicating multiple parts of a work, multiple parts indicated at a time
--- e.g. "Through the Looking Glass, Pts. I-III"
-local multi_multipart = {
-	['re'] = [[((?: - |, )\(?(?i:p(?:ar)?ts?\.?) (]] .. part_index_re .. [[)(?:-|(?:, | & |\+| \+ | and )(]] .. part_index_re .. [[))+(?:, | & |\+| \+ | and )(]] .. part_index_re .. [[)\)?)]],
-	['func'] = function (tag, matches, rest)
-		debug("found multi-multi-part indication")
-		part_indeces = {matches[2], matches[#matches]}
-		for i, _ in ipairs(part_indeces) do
-			if i == 1 then i_str = 'start ' else i_str = 'end ' end
-			if part_indeces[i]:match('[0-9]+') then
-				oldpartindex = part_indeces[i]
-				part_indeces[i] = decimal_to_roman(oldpartindex)
-				debug(i_str .. 'partindex: ' .. oldpartindex .. ' -> ' .. part_indeces[i])
-			elseif not part_indeces[i]:match('[IVXLCDM]+') then
-				oldpartindex = part_indeces[i]
-				part_indeces[i] = english_to_roman(oldpartindex:lower())
-				debug(i_str .. 'start partindex: ' .. oldpartindex .. ' -> ' .. part_indeces[i])
-			else
-				debug(i_str .. 'start partindex: ' .. part_indeces[i])
-			end
-		end
-		to_add = ', Pts. ' .. part_indeces[1] .. '-' .. part_indeces[2]
-		add_component(tag, to_add, false)
 		return rest
 	end
 }
@@ -226,7 +134,7 @@ local multi_multipart = {
 -- ('of' should be uncapitalized)
 local clause = {
 	['re'] = [=[((?:\.|[?!]+|:|;| -|—) )]=],
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
 		debug("found clause delimiter")
 		add_component(tag, matches[1], false)
 		return rest
@@ -237,7 +145,7 @@ local clause = {
 -- e.g. "Iconoclast Disc 1"
 local disc_indication = {
 	['re'] = "( (?:[dD]is[ck]|CD) ?([[:digit:]]+)(?:/[[:digit:]]+)?)",
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
 		debug("found discnumber indication")
 		disc_number_from_album = matches[2]
 		return rest
@@ -248,7 +156,7 @@ local disc_indication = {
 -- e.g. "Theme of CRISIS CORE 'With Pride'"
 local quotation = {
 	['re'] = [=[((\W|^)('|")(\w))]=],
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
 		valid = true
 		-- see if it's a single quote or a double quote
 		if matches[3] == [[']] then
@@ -261,7 +169,7 @@ local quotation = {
 			end
 		else
 			q_type = 2
-			end_index = rest:find([[\w"(\W|$)]]) + 1
+			end_index = rest:find([["(\W|$)]])
 			if end_index == 0 then
 				valid = false
 			else
@@ -288,9 +196,140 @@ local quotation = {
 	end
 }
 
------
--- various types of parentheticals
------
+--------------------------- MULTIPART INDICATION ---------------------------
+
+-- titles indicating multiple parts of a work
+-- e.g. "TEAR, Pt. I"
+-- e.g. "Metropolis, Pt. I: The Miracle and the Sleeper"
+-- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
+-- e.g. "Through the Looking Glass, Pts. I-III"
+-- e.g. "Phase I: Singularity - The Theory of Everything, Pt. I"
+
+-- types of multipart titles
+--		title, type index
+--		title, type index1-indexN
+--		title, type index: subtitle
+--		title, type1 index1: subtitle1; type1 index2; subtitle2; ...
+--		type1 index1: subtitle1 - type2 index21: subtitle21
+
+-- what comes before the main title and "Part N"
+local part_introducer_re = "(?: ?[-,:;–]? ?)"
+-- what sort of types of parts we look for
+local part_type_re = '(?:'
+for re, _ in pairs(settings.tag.uni_part_types) do
+	part_type_re = part_type_re .. re .. '|'
+end
+part_type_re = part_type_re:sub(1,#part_type_re-1) .. ')'
+-- what comes between "Part" and "N"
+local part_type_index_sep_re = "[- _]" -- sometimes you see things like "Title, part-1"
+-- "N"
+local part_index_re = "(?:[0-9IVXLCDM]+|(?i:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty))"
+-- what comes before "Part N" and the subtitle, if present
+local part_subtitle_introducer_re = "(?: ??[-,.:])? ?"
+
+-- one part indicated at a time
+-- e.g. "TEAR, Pt. 1"
+-- e.g. "Unholy Wars, Pt. I: Imperial Crown; Pt. II: Forgiven Return"
+local uni_multipart = {
+	['re'] = '(' .. part_introducer_re .. '(' .. part_type_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. part_subtitle_introducer_re .. ')',
+	['func'] = function (tag, matches, before, rest)
+		debug("found uni-multi-part indication")
+		-- compute part_introducer
+		if before:len() > 0 then
+			if part_introducer == nil then
+				part_introducer = ', '
+			else
+				part_introducer = '; '
+			end
+		else
+			-- if this is the first template to match, we don't want a ', ' at the front
+			part_introducer = ''
+		end
+		partindex = matches[3]
+		if partindex:match('[0-9]+') then
+			oldpartindex = partindex
+			partindex = decimal_to_roman(oldpartindex)
+			debug('partindex: ' .. oldpartindex .. ' -> ' .. partindex)
+		elseif not partindex:match('[IVXLCDM]+') then
+			oldpartindex = partindex
+			partindex = english_to_roman(oldpartindex:lower())
+			debug('partindex: ' .. oldpartindex .. ' -> ' .. partindex)
+		else
+			debug('partindex: ' .. partindex)
+		end
+		-- use proper part type indicator
+		for re, part_type_print in pairs(settings.tag.uni_part_types) do
+			if matches[2]:match(re) then
+				to_add = part_introducer .. part_type_print .. ' ' .. partindex
+				break
+			end
+		end
+		-- if there's a subtitle we should delimit it with a colon
+		if rest:len() > 0 then
+			to_add = to_add .. ': '
+		end
+		add_component(tag, to_add, false)
+		part_introducer = ';' -- if multiple parts are indicated in the same tag, we should separate them with a semicolon, not a comma
+		-- TODO: take out surrounding parentheses from subtitle (next component) if present?
+		return rest
+	end
+}
+
+-- what comes before the main title and "Parts N-M"
+local part_type_multi_re = '(?:'
+for re, _ in pairs(settings.tag.multi_part_types) do
+	part_type_multi_re = part_type_multi_re .. re .. '|'
+end
+part_type_multi_re = part_type_multi_re:sub(1,#part_type_multi_re-1) .. ')'
+-- what comes between "N" and "M"
+local index_index_sep_re = [[(?:-|, | & |\+| \+ | and | through | thru )]]
+
+-- titles indicating multiple parts of a work, multiple parts indicated at a time
+-- e.g. "Through the Looking Glass, Pts. I-III"
+local multi_multipart = {
+	['re'] = '(' .. part_introducer_re .. '(' .. part_type_multi_re .. ')' .. part_type_index_sep_re .. '(' .. part_index_re .. ')' .. index_index_sep_re
+	.. '(?:' .. part_index_re .. index_index_sep_re .. ')*' .. '(' .. part_index_re .. '))',
+	['func'] = function (tag, matches, before, rest)
+		debug("found multi-multi-part indication")
+		-- compute part_introducer
+		if before:len() > 0 then
+			if part_introducer == nil then
+				part_introducer = ', '
+			else
+				part_introducer = '; '
+			end
+		else
+			-- if this is the first template to match, we don't want a ', ' at the front
+			part_introducer = ''
+		end
+		part_indeces = {matches[3], matches[#matches]}
+		for i, _ in ipairs(part_indeces) do
+			if i == 1 then i_str = 'start ' else i_str = 'end ' end
+			if part_indeces[i]:match('[0-9]+') then
+				oldpartindex = part_indeces[i]
+				part_indeces[i] = decimal_to_roman(oldpartindex)
+				debug(i_str .. 'partindex: ' .. oldpartindex .. ' -> ' .. part_indeces[i])
+			elseif not part_indeces[i]:match('[IVXLCDM]+') then
+				oldpartindex = part_indeces[i]
+				part_indeces[i] = english_to_roman(oldpartindex:lower())
+				debug(i_str .. 'start partindex: ' .. oldpartindex .. ' -> ' .. part_indeces[i])
+			else
+				debug(i_str .. 'start partindex: ' .. part_indeces[i])
+			end
+		end
+		-- use proper part type indicator
+		for re, part_type_print in pairs(settings.tag.multi_part_types) do
+			if matches[2]:match(re) then
+				to_add = ', ' .. part_type_print .. ' ' .. part_indeces[1] .. '-' .. part_indeces[2]
+				break
+			end
+		end
+		add_component(tag, to_add, false)
+		return rest
+	end
+}
+
+------------------------------ PARENTHETICALS ------------------------------
 
 local parenthetical_instrumental_indication = {
 	['re'] = "^(?i:instrumental(?: mix)?$)",
@@ -310,12 +349,12 @@ local parenthetical_cover_indication = {
 
 local parenthetical_featured_performer = {
 	['re'] = [[^(?i:f(?:(?:ea)?t\.?)|eaturing) (.*)$]],
-	['func'] = function (tag, matches) 
+	['func'] = function (tag, matches)
 		debug("found parenthetical featured performer")
 		if tag == 'artist' then
 			featured_performer_from_artist = matches[1]
 		else -- tag == 'title'
-			add_component(tag, '[feat. ', false)
+			add_component(tag, '[' .. settings.tag.featured_performer_format .. ' ', false)
 			add_component(tag, matches[1] .. ']', true)
 		end
 	end
@@ -342,7 +381,7 @@ local parenthetical_alternate_mix_indication = {
 		mix_type = mix_type:lower()
 		to_add = to_add .. mix_type
 		if #matches[3]  > 0 then
-			to_add = to_add .. ' ' .. tag_settings.featured_performer_format .. ' ' .. matches[3]
+			to_add = to_add .. ' ' .. settings.tag.featured_performer_format .. ' ' .. matches[3]
 		end
 		to_add = to_add .. ')'
 		add_component(tag, to_add, false)
@@ -484,13 +523,21 @@ local parenthetical_possibilities = {
 -- (determines which sub-feature is a match)
 local parenthetical = {
 	['re'] = [=[ (\(|\[)]=],
-	['func'] = function (tag, matches, rest)
+	['func'] = function (tag, matches, before, rest)
+		debug("found open parenthesis")
 		if matches[1] == '(' then
 			end_index = rest:find([[\)]])
+			if end_index == nil then
+				debug("couldn't find closing parenthesis; aborting")
+				return rest
+			end
 			parenthetical = rest:sub(1, end_index-1)
 			square = false
 		else
 			end_index = rest:find(']')
+			if end_index == nil then
+				debug("couldn't find closing parenthesis; aborting")
+			end
 			parenthetical = rest:sub(1, end_index-1)
 			square = true
 		end
@@ -515,36 +562,17 @@ local parenthetical = {
 	end
 }
 
--- closing parentheses and square brackets
---
--- (quotes do not have this for two reasons:
--- 1. there are (generally) not separate
--- characters for opening and closing quotes.
--- 2. things within quotes are probably not
--- going to contain other sorts of components,
--- whereas parentheticals might.)
-local closing_paren = {
-	['re'] = [=[(\)|\])]=],
-	['func'] = function (tag, matches, rest)
-		debug('found closing delimiter')
-		add_component(tag, matches[1], false)
-		return rest
-	end
-}
-
 -- COMPONENTS THAT MAY APPEAR IN EACH TAG
 local possible_components = {
 	['artist'] = {
 		non_parenthetical_featured_performer,
 		parenthetical,
-		closing_paren,
 		clause,
 		quotation
 	},
 	['album_artist'] = {
 		parenthetical,
 		clause,
-		closing_paren,
 		quotation
 	},
 	['album'] = {
@@ -553,7 +581,6 @@ local possible_components = {
 		multi_multipart,
 		disc_indication,
 		parenthetical,
-		closing_paren,
 		clause,
 		quotation
 	},
@@ -563,7 +590,6 @@ local possible_components = {
 		multi_multipart,
 		non_parenthetical_featured_performer,
 		parenthetical,
-		closing_paren,
 		clause,
 		quotation
 	}
@@ -608,7 +634,7 @@ local function analyze_tag(tag)
 			end
 			add_component(tag, before, cap_next)
 			-- take appropriate action with remainder of string
-			remaining = closest_component.func(tag, closest_component_matches, remaining:sub(closest_component_end_index+1))
+			remaining = closest_component.func(tag, closest_component_matches, before, remaining:sub(closest_component_end_index+1))
 			-- capitalize next component (so first and last words are capitalized)
 			cap_next = true
 		end
@@ -618,11 +644,9 @@ end
 -- do the analysis --
 ---------------------
 
-debug([[   --------------   ]])
-debug([[>> analyzing tags <<]])
-debug([[   --------------   ]])
+debug("== analyzing tags ==")
 
-tags = tags or {} -- in case 10-tag-fields wasn't run
+local tags = tags or {} -- in case 10-tag-fields wasn't run
 
 components = {}
 for tag, _ in pairs(tags) do
@@ -636,7 +660,7 @@ end
 -- append featured performer from artist to title
 if featured_performer_from_artist then
 	debug("appending featured performer indication to title")
-	add_component('title', ' (feat. ' .. featured_performer_from_artist .. ')', false)
+	add_component('title', ' (' .. settings.tag.featured_performer_format .. ' ' .. featured_performer_from_artist .. ')', false)
 end
 
 -- set discnumber to any found in album
@@ -650,9 +674,7 @@ end
 --	SYNTHESIZE TAGS
 ------------------------------------
 
-debug([[   ---------------   ]])
-debug([[>> assembling tags <<]])
-debug([[   ---------------   ]])
+debug("== assembling tags ==")
 
 -- analyze & fix composer
 if not empty(tags.composer) then
@@ -703,7 +725,7 @@ local function setcase(input)
 
 		-- add sep (for now, just a space or an empty string)
 		table.insert(output, sep)
-		
+
 		-- save some function calls
 		local lower = word:lower()
 		local upper = word:upper()
@@ -715,7 +737,7 @@ local function setcase(input)
 		-- Constants (only check if not the first or last word)
 		if i > 1 and i < #seps_words then
 			-- lowercase constants
-			for _, c in ipairs(tag_settings.const_lower) do
+			for _, c in ipairs(settings.tag.const_lower) do
 				if lower == c then
 					if word ~= c then
 						debug("matched lowercase constant '" .. word .. "' --> '" .. lower .. "'")
@@ -726,7 +748,7 @@ local function setcase(input)
 				end
 			end
 			-- prepositions
-			for c, list in pairs(tag_settings.const_preposition) do
+			for c, list in pairs(settings.tag.const_preposition) do
 				if lower == c then
 					matched_exception = false
 					for _, preceding_word in ipairs(list) do
@@ -748,7 +770,7 @@ local function setcase(input)
 				end
 			end
 			-- uppercase constants
-			for _, c in ipairs(tag_settings.const_upper) do
+			for _, c in ipairs(settings.tag.const_upper) do
 				if upper == c then
 					if word ~= upper then
 						debug("matched uppercase constant '" .. word "' --> '" .. upper .. "'")
@@ -772,7 +794,7 @@ local function setcase(input)
 			casing = LEAVE_ALONE
 		end
 
-		if tag_settings.keep_all_caps then
+		if settings.tag.keep_all_caps then
 			-- Words that are at least 2 characters long and already all-caps
 			if not matched and word:len() > 2 and word == word:upper() then
 				debug("matched all-caps word: '" .. word .. "'")
@@ -780,7 +802,7 @@ local function setcase(input)
 			end
 		end
 
-		if tag_settings.keep_mixed_case then
+		if settings.tag.keep_mixed_case then
 			-- Words that are longer than 2 characters and already mixed-case
 			if not matched and word:match('(?:.+?[[:upper:]][[:lower:]]|[[:lower:]]+?[[:upper:]])') then
 				debug("matched mixed-case word: '" .. word .. "'")
@@ -788,7 +810,7 @@ local function setcase(input)
 			end
 		end
 
-		if tag_settings.keep_all_lower then
+		if settings.tag.keep_all_lower then
 			-- Words that are longer than 2 characters and already all lowercase
 			if not matched and word:len() > 2 and word == word:lower() then
 				debug("matched all-lowercase word: '" .. word .. "'")
@@ -883,7 +905,7 @@ end
 
 -- apply global substitutions
 for k, _ in pairs(tags) do
-	for _, rule in ipairs(tag_settings.global_substitutions) do
+	for _, rule in ipairs(settings.tag.global_substitutions) do
 		newtag = tags[k]:gsub(rule[1], rule[2])
 		if newtag ~= tags[k] then
 			debug("> performing global substitution on " .. k .. ": '" .. rule[1] .. "' -> '" .. rule[2] .. "'")

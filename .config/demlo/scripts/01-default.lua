@@ -6,7 +6,7 @@
 ---------------------------------
 
 -- library: 'hi-res', 'lo-res', or nil
-library_dir = nil
+settings.library.sublibrary = nil
 
 -- remove source, so we don't have extra files 
 output.rmsrc = true
@@ -14,13 +14,13 @@ output.rmsrc = true
 -- rules for encoding:
 -- association between input_format and {output_format, output_parameters}
 -- (set output_format = nil to use input format)
-encoding_map = default_encoding_map
+settings.encode.map = settings.encode.default_map
 
 -- types of cover art to use
-cover_types = {}
+settings.cover.types = settings.cover.types_all
 
--- upper limit for vertical resolution of cover art
-COVER_LIMIT_HIGH = nil
+-- upper limit for vertical resolution of cover art (nil = no limit)
+settings.cover.size_limit = settings.cover.size_limit_local
 
 -- apply minimal path substitutions
-pathsubs = default_pathsubs
+settings.path.substitutions = settings.path.default_substitutions

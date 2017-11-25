@@ -6,11 +6,13 @@
 --------------------------------
 
 -- import to lo-res library
-library_dir = 'lo-res'
+settings.library.sublibrary = 'lo-res'
+
 -- keep original files
 output.rmsrc = false
+
 -- flac -> vorbis q5; lossy -> copy
-encoding_map = {
+settings.encode.map = {
 	{
 		'flac',
 		{
@@ -26,9 +28,12 @@ encoding_map = {
 		}
 	}
 }
+
 -- only use front cover
-cover_types = {"front"}
+settings.cover.types = {"front"}
+
 -- downscale covers to 300x300
-COVER_LIMIT_HIGH = PORTABLE_COVER_SIZE_LIMIT
+settings.cover.size_limit = settings.cover.size_limit_portable
+
 -- apply strict pathsubs
-pathsubs = strict_pathsubs
+settings.path.substitutions = settings.path.strict_substitutions

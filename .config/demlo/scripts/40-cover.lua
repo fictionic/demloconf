@@ -20,9 +20,9 @@ debug([[\\==============//]])
 
 -- Properties
 local LIMIT_LOW = 0
-local LIMIT_HIGH = COVER_LIMIT_HIGH or 20000
+local LIMIT_HIGH = settings.cover.size_limit
 
-local dirname = output.path:match('^(.*)/') or '.'
+local dirname = settings.path.directory or '.'
 
 local checksum_list = {}
 
@@ -55,9 +55,11 @@ local function to_jpeg(input_cover, stream, file, basename)
 		output_cover.parameters[#output_cover.parameters+1] = math.floor(input_cover.width/max_ratio + 0.5) .. 'x' .. math.floor(input_cover.height/max_ratio + 0.5)
 
 	elseif input_cover.format == 'jpeg' then
+		print("input cover already in jpeg format; copying")
 		-- Already in jpeg, do not convert.
 		output_cover.parameters = nil
 	else
+		print("converting cover format from " .. input_cover.format)
 		-- Convert to jpeg.
 		output_cover.parameters[#output_cover.parameters+1] = '-c:' .. stream
 		output_cover.parameters[#output_cover.parameters+1] = 'mjpeg'
@@ -159,7 +161,7 @@ for file, input_cover in pairs(input.externalcovers) do
 	-- standardize the file
 	-- only copy desired cover types
 	local matched = false
-	for _, t in pairs(cover_types) do
+	for _, t in pairs(settings.cover.types) do
 		if cover_type == t then
 			matched = true
 			break
