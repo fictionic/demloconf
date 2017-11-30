@@ -101,7 +101,7 @@ local disc_number_from_album = nil
 -- e.g. title: "Forever, Feat. Eminem"
 -- e.g. artist: "Drake Ft Eminem"
 local non_parenthetical_featured_performer = {
-	['re'] = [[((?:,| -)? (?i:f(?:ea)?t(?:\.|uring)?) (.*))$]],
+	['re'] = [[((?:,| -)? (?i:f(?:(?:(?:ea)?t\.?)|eaturing)) (.+)$]],
 	['func'] = function (tag, matches, before, rest)
 		debug("found non-parenthetical featured performer")
 		if tag == 'artist' then
@@ -348,7 +348,7 @@ local parenthetical_cover_indication = {
 }
 
 local parenthetical_featured_performer = {
-	['re'] = [[^(?i:f(?:(?:ea)?t\.?)|eaturing) (.*)$]],
+	['re'] = [[^(?i:f(?:(?:(?:ea)?t\.?)|eaturing)) (.+)$]],
 	['func'] = function (tag, matches)
 		debug("found parenthetical featured performer")
 		if tag == 'artist' then
@@ -522,7 +522,7 @@ local parenthetical_possibilities = {
 -- the parenthetical meta-feature
 -- (determines which sub-feature is a match)
 local parenthetical = {
-	['re'] = [=[ (\(|\[)]=],
+	['re'] = [=[ ?(\(|\[)]=],
 	['func'] = function (tag, matches, before, rest)
 		debug("found open parenthesis")
 		if matches[1] == '(' then
@@ -541,12 +541,18 @@ local parenthetical = {
 			parenthetical = rest:sub(1, end_index-1)
 			square = true
 		end
+		debug("found parenthetical: '" .. parenthetical .. "'; analyzing...")
 		-- analyze what's inside the parentheses
 		for _, possibility in ipairs(parenthetical_possibilities[tag]) do
 			-- assemble the matches into a table so they can be
 			-- handled properly by the function we'll call
 			inner_matches = {parenthetical:match(possibility.re)}
 			if inner_matches[1] then
+				-- see if we should add a space first
+				if before:sub(-1) ~= ' ' then
+					debug("adding space before parenthetical...")
+					add_component(tag, ' ', false)
+				end
 				scan_parenthetical = possibility.func(tag, inner_matches, square)
 				break
 			end
