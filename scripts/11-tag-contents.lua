@@ -101,7 +101,7 @@ local disc_number_from_album = nil
 -- e.g. title: "Forever, Feat. Eminem"
 -- e.g. artist: "Drake Ft Eminem"
 local non_parenthetical_featured_performer = {
-	['re'] = [[((?:,| -)? (?i:f(?:(?:(?:ea)?t\.?)|eaturing)) (.+)$]],
+	['re'] = [[((?:,| -)? (?i:f(?:(?:(?:ea)?t\.?)|eaturing)) (.+))$]],
 	['func'] = function (tag, matches, before, rest)
 		debug("found non-parenthetical featured performer")
 		if tag == 'artist' then
